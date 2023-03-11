@@ -18,9 +18,18 @@ const mysqlPassword = '${MYSQL_PASSWORD}';
 const mysqlPort = '${MYSQL_PORT}';
 const clusterName = '${MYSQL_CLUSTER_NAME}';
 const clusterOptions = ${MYSQL_CLUSTER_OPTIONS};
+dba.checkInstanceConfiguration({user: mysqlUser, password: mysqlPassword, host: 'server-1', port: mysqlPort});
+dba.configureInstance({user: mysqlUser, password: mysqlPassword, host: 'server-1', port: mysqlPort},{clearReadOnly: true, interactive: false});
+
 const cluster = dba.createCluster(clusterName, clusterOptions);
-cluster.addInstance({user: mysqlUser, password: mysqlPassword, host: 'server-2'});
-cluster.addInstance({user: mysqlUser, password: mysqlPassword, host: 'server-3'});
+
+dba.checkInstanceConfiguration({user: mysqlUser, password: mysqlPassword, host: 'server-2', port: mysqlPort});
+dba.configureInstance({user: mysqlUser, password: mysqlPassword, host: 'server-2', port: mysqlPort},{clearReadOnly: true, interactive: false});
+cluster.addInstance({user: mysqlUser, password: mysqlPassword, host: 'server-2'}, {recoveryMethod: 'clone', interactive:false});
+
+dba.checkInstanceConfiguration({user: mysqlUser, password: mysqlPassword, host: 'server-3', port: mysqlPort});
+dba.configureInstance({user: mysqlUser, password: mysqlPassword, host: 'server-3', port: mysqlPort},{clearReadOnly: true, interactive: false});
+cluster.addInstance({user: mysqlUser, password: mysqlPassword, host: 'server-3'}, {recoveryMethod: 'clone', interactive:false});
 EOF
 
 echo "Attempting to create cluster."
