@@ -1,0 +1,103 @@
+
+version: "3.7"
+
+services:
+  server-1: &server
+    image: "mysql/mysql-server:${MYSQL_VERSION}"
+    container_name: server-1
+    ports:
+      - "3001:3306"
+      - "4001:33060"
+    command:
+      - "--server_id=1"
+    environment:
+      - MYSQL_ROOT_PASSWORD
+      - MYSQL_ROOT_HOST
+    volumes:
+      - "./my.cnf:/etc/my.cnf"
+      - "./data/server-1:/var/lib/mysql"
+    restart: always
+    networks:
+      - grepNet
+
+  server-2:
+    <<: *server
+    ports:
+      - "3002:3306"
+      - "4002:33060"
+    container_name: server-2    
+    command:
+      - "--server_id=2"
+    volumes:
+      - "./my.cnf:/etc/my.cnf"
+      - "./data/server-2:/var/lib/mysql"
+    networks:
+      - grepNet
+
+  server-3:
+    <<: *server
+    ports:
+      - "3003:3306"
+      - "4003:33060"
+    container_name: server-3
+    command:
+      - "--server_id=3"
+    volumes:
+      - "./my.cnf:/etc/my.cnf"
+      - "./data/server-3:/var/lib/mysql"
+    networks:
+      - grepNet
+
+  shell:
+    image: "mysql/mysql-server:${MYSQL_VERSION}"
+    container_name: shell
+    entrypoint: "/bin/shell-entrypoint"
+    environment: &other-environment
+      - MYSQL_USER
+      - MYSQL_PASSWORD
+      - MYSQL_HOST
+      - MYSQL_PORT
+      - MYSQL_CLUSTER_NAME
+      - MYSQL_CLUSTER_OPTIONS
+      - MYSQL_INNODB_NUM_MEMBERS
+    volumes:
+      - "./shell-entrypoint.sh:/bin/shell-entrypoint"
+    depends_on: &other-depends
+      - server-1
+      - server-2
+      - server-3
+    networks:
+      - grepNet
+
+  router:
+    image: "mysql/mysql-router:${MYSQL_VERSION}"
+    container_name: router
+    ports:
+      - "7446:6446"
+      - "7447:6447"
+    environment: *other-environment
+    volumes:
+      - "./data/router:/var/lib/mysqlrouter"
+    depends_on: *other-depends
+    restart: always
+    networks:
+      - grepNet
+
+  prometheus-exporter:
+    image: "prom/mysqld-exporter"
+    container_name: prom
+    ports:
+      - "9104:9104"
+    environment:
+      DATA_SOURCE_NAME: "${MYSQL_USER}:${MYSQL_PASSWORD}@(${MYSQL_HOST}:${MYSQL_PORT})/"
+    depends_on: *other-depends
+    restart: always
+    networks:
+      - grepNet
+
+networks:
+  grepNet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.13.0.1/16
